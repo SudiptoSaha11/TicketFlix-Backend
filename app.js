@@ -24,8 +24,6 @@ const Event = require('./models/Event')
 // For other functions (e.g. login, signup, movieProduct, etc.) from your mongoose file
 const mongoPractice = require('./mongoose');
 
-// Import screen routes (adjust the path as needed)
-const screenRoutes = require('../MongoDB/Routes/screenRoutes');
 
 const app = express();
 
@@ -204,14 +202,6 @@ app.post(
   ],
   mongoPractice.adminsignup
 );
-
-// Screen routes
-app.use('/api/screen', screenRoutes);
-app.post('/screen/add', mongoPractice.screen);
-app.get('/screen', mongoPractice.getscreen);
-app.get('/screen/:pid', mongoPractice.getscreenById);
-app.patch('/screen/update/:pid', mongoPractice.updatescreenById);
-app.delete('/screen/delete/:pid', mongoPractice.deletescreenById);
 
 // Schedule schema routes
 app.post('/Scheduleschema/add', mongoPractice.scheduleProduct);

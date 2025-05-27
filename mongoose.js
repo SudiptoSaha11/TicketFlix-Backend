@@ -5,7 +5,6 @@ const path=require("path");
 // const Projectschema = require('./models/Projectschema');
 const Product1 = require('./models/Movieschema')
 const Product2 = require('./models/Scheduleschema')
-const Product3 = require('./models/screen')
 const User = require('./models/user')
 const Admin = require('./models/Admin')
 const Product4 = require('./models/Event')
@@ -15,78 +14,6 @@ const { validationResult } = require('express-validator');
 const HttpError = require('./models/http-error');
 
 
-const screen = async(req, res, next) => {
-  const errors = validationResult(req);
-if (!errors.isEmpty()) {
-  
-  const errorMessage='Invalid inputs passed, please check your data.';
-  return res.status(422).json({ message: errorMessage });
-}
-  const screen = new Product3 ({
-      ScreenNumber: req.body.ScreenNumber,
-      MovieName: req.body.MovieName,
-      GoldSeat: req.body.GoldSeat,
-      SilverSeat: req.body.SilverSeat,
-      PlatinumSeat: req.body.PlatinumSeat
-  });
-  const result = await screen.save();
-  res.json(result);
-};
-
-// mongodb we have to Create the get method to add movie product into the mongodb
-
-const getscreen = async(req, res, next) => {
-
-  const product = await Product3.find().exec()
-
-// if product is null
-      if (!product){
-          res.send('Not Found')
-      }
-      res.json(product);
-  };
-
-// mongodb we have to Create the get method by ID for movie product to get  the product by id
-
-const getscreenById = async (req, res, next) => {
-  // get the variable passed by url
-  const id = req.params.pid;
-  const product = await Product3.findById(id).exec();
-  if (!product) {
-      res.send('Not Found');
-  }
-  res.json(product);
-};
-
-// mongodb we have to Create the update method to update movie product into the mongodb
-
-const updatescreenById = async(req, res, next)=>{
-  const id=req.params.pid;
-  const updateData = {
-    ScreenNumber: req.body.ScreenNumber,
-    MovieName: req.body.MovieName,
-    GoldSeat: req.body.GoldSeat,
-    SilverSeat: req.body.SilverSeat,
-    PlatinumSeat: req.body.PlatinumSeat
-  };
-  const product = await Product3.findByIdAndUpdate(id, updateData, { new: true });
-  if(!product)
-  {
-      res.send('not found');
-  }
-  res.json(product);
-};
-
-// mongodb we have to Create the delete method to delete the movie product from mongodb
-
-const deletescreenById = async(req,res, next)=>{
-  const id = req.params.pid;
- const product = await Product3.findByIdAndDelete(id).exec();
- if (!product){
-  res.send('Not Found')
- }
- res.send('Delete successful')
-};
 // -------------------------------------------------------------------------------------------------------
 const movieProduct = async (req, res, next) => {
   const { 
@@ -1047,12 +974,6 @@ exports.login = login;
 
 //export one by one product
 // Exporting all post, get, update, delete method for screen product
-
-exports.screen = screen;
-exports.getscreen = getscreen;
-exports.getscreenById = getscreenById;
-exports.updatescreenById = updatescreenById;
-exports.deletescreenById = deletescreenById;
 
 //export one by one product
 // Exporting all post, get, update, delete method for moview product
