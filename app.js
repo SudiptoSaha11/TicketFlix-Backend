@@ -2,13 +2,15 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+require('dotenv').config(); // Load environment variables from .env file
 const { check } = require('express-validator');
 const cors = require('cors');
 const bodyparser = require('body-parser');
 const multer = require('multer');
-const stripe = require("stripe")("sk_test_51PyTTVBPFFoOUNzJjLQNya8NZBe6lmtmjUnNa9gY36ZVIt28iu4lYZar86bgditVgulnsdgnwjp9UhhQG3ZOBYec00UJjCLxQF"); // Use environment variable in production
 const crypto = require('crypto');
 const mongoose = require('mongoose');
+
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY); // Use
 
 // Connect to your database
 const connectDB = require("./db"); // Adjust the path if needed
@@ -31,6 +33,10 @@ const app = express();
 app.use(cors());
 app.use(bodyparser.json());
 app.use(express.static('public'));
+
+app.get("/", (req, res) => {
+  res.send("Welcome to the Movie Booking API");
+});
 
 // Serve static files from the uploads folder
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -312,6 +318,6 @@ app.get('/api/eventcomplete', async (req, res) => {
 app.get('/dashboard/stats', mongoPractice.getDashboardStats);
 
 
-app.listen(5000, () => {
+app.listen(process.env.PORT, () => {
   console.log('Server is running on port 5000');
 });
