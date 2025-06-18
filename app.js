@@ -18,12 +18,10 @@ connectDB();
 
 // Import your movieschema model (this file now reuses the model if already compiled)
 const Movie = require('./models/Movieschema');
-
-const Event = require('./models/Event')
+const Event = require('./models/Event');
 
 // For other functions (e.g. login, signup, movieProduct, etc.) from your mongoose file
 const mongoPractice = require('./mongoose');
-
 
 const app = express();
 
@@ -104,8 +102,8 @@ app.post('/webhook', bodyparser.raw({ type: 'application/json' }), async (req, r
       const bookingDetails = JSON.parse(session.metadata.bookingDetails);
 
       const screenProduct = new mongoPractice.Projectschema({
-        MovieName: bookingDetails.Name,
-        seatsBooked: bookingDetails.seats,
+        MovieName: bookingDetails.movieName,
+        seatsBooked: bookingDetails.seatsBooked,
         totalAmount: bookingDetails.totalAmount,
         bookingDate: bookingDetails.bookingDate,
       });
@@ -132,6 +130,15 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
+// Success and Cancel pages
+app.get('/success', (req, res) => {
+  res.send('🎉 Payment successful! Thank you for your purchase.');
+});
+
+app.get('/cancel', (req, res) => {
+  res.send('⚠️ Payment canceled. You have not been charged.');
+});
+
 // User routes
 app.post('/userlogin', mongoPractice.login);
 app.post(
@@ -148,7 +155,7 @@ app.post(
 app.post('/movieschema/add', 
   upload.fields([
     { name: 'image', maxCount: 1 },
-    { name: 'castImage', maxCount: 10 }  // Allow up to 10 cast images
+    { name: 'castImage', maxCount: 10 }
   ]),
   mongoPractice.movieProduct
 );
@@ -158,12 +165,10 @@ app.get('/movieview', mongoPractice.getMovieProduct);
 app.get('/getmovieview/:pid', async (req, res, next) => {
   const id = req.params.pid;
   try {
-    // Use the imported Movie model
     const product = await Movie.findById(id).exec();
     if (!product) {
       return res.status(404).send('Product not found');
     }
-    // Construct the full poster URL. If product.image starts with "http", assume it's a full URL.
     const imageURL = product.image.startsWith("http")
       ? product.image
       : `http://localhost:5000/uploads/${product.image}`;
@@ -178,7 +183,7 @@ app.get('/getmovieview/:pid', async (req, res, next) => {
       movieReleasedate: product.movieReleasedate,
       trailerLink: product.trailerLink,
       movieFormat: product.movieFormat,
-      imageURL, // Full poster URL
+      imageURL,
       reviews: product.reviews || []
     });
   } catch (err) {
@@ -211,32 +216,30 @@ app.get('/Scheduleschema/movie/:pid', mongoPractice.getScheduleProductByMovieNam
 app.patch('/Scheduleschema/update/:pid', mongoPractice.updateScheduleProductById);
 app.delete('/Scheduleschema/delete/:pid', mongoPractice.deleteScheduleProducById);
 
+// Event routes
 app.post('/event/add', 
   upload.fields([
     { name: 'image', maxCount: 1 },
-    { name: 'castImage', maxCount: 10 }  // Allow up to 10 cast images
+    { name: 'castImage', maxCount: 10 }
   ]),
   mongoPractice.EventProduct
 );
 app.get('/event', mongoPractice.getEventProduct);
 
-// UPDATED GET route for movie details
 app.get('/getevent/:pid', async (req, res, next) => {
   const id = req.params.pid;
   try {
-    // Use the imported Movie model
     const product = await Event.findById(id).exec();
     if (!product) {
       return res.status(404).send('Product not found');
     }
-    // Construct the full poster URL. If product.image starts with "http", assume it's a full URL.
     const imageURL = product.image.startsWith("http")
       ? product.image
       : `http://localhost:5000/uploads/${product.image}`;
 
     res.json({
       eventName: product.eventName,
-      imageURL, // Full poster URL
+      imageURL,
       eventLanguage: product.eventLanguage,
       eventDuration: product.eventDuration,
       eventArtist: product.eventArtist,
@@ -264,7 +267,7 @@ app.patch('/booking/update/:pid', mongoPractice.updateBookingById);
 app.patch('/booking/:id/cancel', mongoPractice.cancelBooking);
 app.delete('/booking/delete/:pid', mongoPractice.deleteBookingById);
 
-// Event schema routes
+// Event schedule routes
 app.post('/eventschedule/add', mongoPractice.Eventschedule);
 app.get('/eventschedule', mongoPractice.getEventschedule);
 app.get('/geteventschedule/:pid', mongoPractice.getEventscheduleById);
@@ -272,7 +275,7 @@ app.get('/eventschedule/event/:pid', mongoPractice.getEventscheduleByeventName);
 app.patch('/eventschedule/update/:pid', mongoPractice.updateEventscheduleById);
 app.delete('/eventschedule/delete/:pid', mongoPractice.deleteEventscheduleById);
 
-// Example: server.js (Node/Express)
+// Autocomplete API routes
 app.get('/api/autocomplete', async (req, res) => {
   try {
     const searchTerm = req.query.search || '';
@@ -280,7 +283,6 @@ app.get('/api/autocomplete', async (req, res) => {
       movieName: { $regex: searchTerm, $options: 'i' },
     }).limit(10);
 
-    // Return the whole movie object (or at least _id and movieName)
     res.json(results);
   } catch (error) {
     console.error('Error in autocomplete route:', error);
@@ -295,7 +297,6 @@ app.get('/api/eventcomplete', async (req, res) => {
       eventName: { $regex: searchTerm, $options: 'i' },
     }).limit(10);
 
-    // Return the whole event object (or at least _id and eventName)
     res.json(results);
   } catch (error) {
     console.error('Error in autocomplete route:', error);
@@ -303,11 +304,9 @@ app.get('/api/eventcomplete', async (req, res) => {
   }
 });
 
-//--------------------------------------------------------------------------------------
-
+// Dashboard stats
 app.get('/dashboard/stats', mongoPractice.getDashboardStats);
 
-
 app.listen(process.env.PORT, () => {
-  console.log('Server is running on port 5000');
+  console.log('Server is running on port', process.env.PORT);
 });
