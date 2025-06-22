@@ -41,23 +41,37 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Stripe Checkout API
 app.post('/api/create-checkout-session', async (req, res) => {
-  const { Name, seats, totalAmount } = req.body;
+  const { Name, seats = [], food = [], totalAmount } = req.body;
 
   if (typeof totalAmount !== 'number' || totalAmount <= 0) {
     return res.status(400).json({ error: 'Invalid total amount' });
   }
 
-  // Create a line item for each booked seat
-  const lineItems = seats.map(seat => ({
+  // Seat line items
+  const seatItems = seats.map((seat) => ({
     price_data: {
       currency: 'inr',
       product_data: {
         name: `${Name} - ${seat.seatType} ${seat.seatNumber}`,
       },
-      unit_amount: seat.price * 100,
+      unit_amount: Math.round(seat.price * 100),
     },
     quantity: 1,
   }));
+
+  // Food line items
+  const foodItems = food.map((item) => ({
+    price_data: {
+      currency: 'inr',
+      product_data: {
+        name: item.beverageName || 'Food Item',
+      },
+      unit_amount: Math.round((item?.sizes?.[0]?.price || 0) * 100),
+    },
+    quantity: 1,
+  }));
+
+  const lineItems = [...seatItems, ...foodItems];
 
   try {
     const session = await stripe.checkout.sessions.create({
@@ -65,20 +79,21 @@ app.post('/api/create-checkout-session', async (req, res) => {
       line_items: lineItems,
       mode: 'payment',
       success_url: 'https://ticketflix-official.netlify.app/success',
-      cancel_url: 'https://ticketflix-official.netlify.app/ticketbooking',
+      cancel_url: 'https://ticketflix-official.netlify.app/',
       metadata: {
         bookingDetails: JSON.stringify({
           movieName: Name,
-          seatsBooked: seats,
-          totalAmount: totalAmount,
-          bookingDate: new Date(),
+          totalAmount: totalAmount.toString(),
+          bookingDate: new Date().toISOString(),
+          seatCount: seats.length.toString(),
+          foodCount: food.length.toString(),
         }),
       },
     });
 
     res.json({ id: session.id });
   } catch (error) {
-    console.error('Error creating Stripe session:', error);
+    console.error('Stripe session error:', error);
     res.status(500).json({ error: 'Failed to create checkout session' });
   }
 });
@@ -145,7 +160,7 @@ app.post(
 );
 
 // Movie routes
-app.post('/movieschema/add', 
+app.post('/movieschema/add',
   upload.fields([
     { name: 'image', maxCount: 1 },
     { name: 'castImage', maxCount: 10 }  // Allow up to 10 cast images
@@ -211,7 +226,7 @@ app.get('/Scheduleschema/movie/:pid', mongoPractice.getScheduleProductByMovieNam
 app.patch('/Scheduleschema/update/:pid', mongoPractice.updateScheduleProductById);
 app.delete('/Scheduleschema/delete/:pid', mongoPractice.deleteScheduleProducById);
 
-app.post('/event/add', 
+app.post('/event/add',
   upload.fields([
     { name: 'image', maxCount: 1 },
     { name: 'castImage', maxCount: 10 }  // Allow up to 10 cast images
@@ -271,6 +286,13 @@ app.get('/geteventschedule/:pid', mongoPractice.getEventscheduleById);
 app.get('/eventschedule/event/:pid', mongoPractice.getEventscheduleByeventName);
 app.patch('/eventschedule/update/:pid', mongoPractice.updateEventscheduleById);
 app.delete('/eventschedule/delete/:pid', mongoPractice.deleteEventscheduleById);
+
+
+app.post('/beverages/add', mongoPractice.createBeverage);
+app.get('/beverages', mongoPractice.getAllBeverages);
+app.get('/beverages/:id', mongoPractice.getBeverageById);
+app.put('/beverages/:id', mongoPractice.updateBeverage);
+app.delete('/beverages/:id', mongoPractice.deleteBeverage);
 
 // Example: server.js (Node/Express)
 app.get('/api/autocomplete', async (req, res) => {
