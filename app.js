@@ -98,6 +98,55 @@ app.post('/api/create-checkout-session', async (req, res) => {
   }
 });
 
+app.post('/api/event/create-checkout-session', async (req, res) => {
+  const { eventName, seatsBooked = [], totalAmount } = req.body;
+
+  if (typeof totalAmount !== 'number' || totalAmount <= 0) {
+    return res.status(400).json({ error: 'Invalid total amount' });
+  }
+
+  // Seat line items
+  const seatItems = seatsBooked.map((seat) => ({
+    price_data: {
+      currency: 'inr',
+      product_data: {
+        name: `${eventName} - ${seat.seatType} ${seat.seatNumber}`,
+      },
+      unit_amount: Math.round(seat.price * 100),
+    },
+    quantity: 1,
+  }));
+
+  // You can enable food items logic later if needed
+  const lineItems = [...seatItems];
+
+  try {
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: lineItems,
+      mode: 'payment',
+      success_url: 'https://ticketflix-official.netlify.app/eventsuccess',
+      cancel_url: 'https://ticketflix-official.netlify.app/',
+      metadata: {
+        bookingDetails: JSON.stringify({
+          movieName: eventName,
+          totalAmount: totalAmount.toString(),
+          bookingDate: new Date().toISOString(),
+          seatCount: seatsBooked.length.toString(),
+        }),
+      },
+    });
+
+    res.json({ id: session.id });
+  } catch (error) {
+    console.error('Stripe session error:', error);
+    res.status(500).json({ error: 'Failed to create checkout session' });
+  }
+});
+
+
+
+
 // Stripe webhook endpoint to handle Stripe events
 app.post('/webhook', bodyparser.raw({ type: 'application/json' }), async (req, res) => {
   const sig = req.headers['stripe-signature'];
