@@ -8,6 +8,8 @@ const Booking = new mongoose.Schema({
   // Added Venue and showTime fields
   Venue: { type: String, required: false },
   Time: { type: String, required: false },
+  Language: { type: String, required: false },
+  Format: { type: String, required: false },
 
   seats: [{ type: String, required: true }], // Array of seat numbers as strings
   totalAmount: { type: Number, required: true },

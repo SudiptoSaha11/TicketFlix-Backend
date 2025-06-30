@@ -625,9 +625,9 @@ const deleteEventProductById = async (req, res, next) => {
 // Create a new booking
 const Booking = async (req, res) => {
   try {
-    const { userEmail, Name, seats, totalAmount, bookingDate, Venue, Time, status } = req.body;
+    const { userEmail, Name, seats, totalAmount, bookingDate, Venue, Time,Language, status } = req.body;
 
-    console.log('Received data:', { userEmail, Name, seats, totalAmount, bookingDate, Venue, Time, status });
+    console.log('Received data:', { userEmail, Name, seats, totalAmount, bookingDate, Venue, Time, Language, status });
 
     // Validate user email
     if (!userEmail) {
@@ -670,6 +670,7 @@ const Booking = async (req, res) => {
       Name,
       Venue,
       Time,
+      Language,
       seats,  // Now just an array of seat numbers
       totalAmount,
       bookingDate: bookingDateObject,
@@ -736,7 +737,7 @@ const getBookingById = async (req, res) => {
 const updateBookingById = async (req, res) => {
   try {
     const id = req.params.pid;
-    const { userEmail, Name, seats, totalAmount, bookingDate, Venue, Time, status } = req.body;
+    const { userEmail, Name, seats, totalAmount, bookingDate, Venue, Time,Language, status } = req.body;
 
     // Ensure user exists
     if (userEmail) {
@@ -762,6 +763,7 @@ const updateBookingById = async (req, res) => {
       Name,
       Venue,
       Time,
+      Language, 
       seats,
       totalAmount,
       bookingDate,
