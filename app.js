@@ -28,7 +28,11 @@ const mongoPractice = require('./mongoose');
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:3000', 'https://ticketflix-official.netlify.app'],
+  credentials: true,
+}));
+
 app.use(bodyparser.json());
 app.use(express.static('public'));
 
