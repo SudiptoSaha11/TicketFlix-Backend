@@ -29,7 +29,15 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:3000', 'https://ticketflix-official.netlify.app'],
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true); // Allow non-browser requests (e.g., server-to-server)
+    const allowedOrigins = ['http://localhost:3000', 'https://ticketflix-official.netlify.app'];
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
 }));
 
