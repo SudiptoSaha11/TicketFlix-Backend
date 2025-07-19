@@ -28,11 +28,7 @@ const mongoPractice = require('./mongoose');
 const app = express();
 
 // Middleware
-app.use(cors({
-  origin: ['http://localhost:3000', 'https://ticketflix-official.netlify.app'],
-  credentials: true,
-}));
-
+app.use(cors());
 app.use(bodyparser.json());
 app.use(express.static('public'));
 
@@ -47,12 +43,13 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.post('/api/create-checkout-session', async (req, res) => {
   const { Name, seats = [], food = [], totalAmount } = req.body;
 
+  // Validate totalAmount
   if (typeof totalAmount !== 'number' || totalAmount <= 0) {
     return res.status(400).json({ error: 'Invalid total amount' });
   }
 
   // Seat line items
-  const seatItems = seats.map((seat) => ({
+  const seatItems = seats.map(seat => ({
     price_data: {
       currency: 'inr',
       product_data: {
@@ -63,16 +60,16 @@ app.post('/api/create-checkout-session', async (req, res) => {
     quantity: 1,
   }));
 
-  // Food line items
-  const foodItems = food.map((item) => ({
+  // Food line items (using the quantity provided)
+  const foodItems = food.map(item => ({
     price_data: {
       currency: 'inr',
       product_data: {
         name: item.beverageName || 'Food Item',
       },
-      unit_amount: Math.round((item?.sizes?.[0]?.price || 0) * 100),
+      unit_amount: Math.round((item.price || 0) * 100),
     },
-    quantity: 1,
+    quantity: item.quantity || 1,    // <-- use item.quantity here
   }));
 
   const lineItems = [...seatItems, ...foodItems];
@@ -82,15 +79,15 @@ app.post('/api/create-checkout-session', async (req, res) => {
       payment_method_types: ['card'],
       line_items: lineItems,
       mode: 'payment',
-      success_url: 'https://ticketflix-official.netlify.app/success',
-      cancel_url: 'https://ticketflix-official.netlify.app/',
+      success_url: 'http://localhost:3000/success',
+      cancel_url:  'http://localhost:3000/',
       metadata: {
         bookingDetails: JSON.stringify({
           movieName: Name,
           totalAmount: totalAmount.toString(),
           bookingDate: new Date().toISOString(),
           seatCount: seats.length.toString(),
-          foodCount: food.length.toString(),
+          foodCount: food.reduce((sum, f) => sum + (f.quantity || 1), 0).toString(),
         }),
       },
     });
@@ -101,55 +98,6 @@ app.post('/api/create-checkout-session', async (req, res) => {
     res.status(500).json({ error: 'Failed to create checkout session' });
   }
 });
-
-app.post('/api/event/create-checkout-session', async (req, res) => {
-  const { eventName, seatsBooked = [], totalAmount } = req.body;
-
-  if (typeof totalAmount !== 'number' || totalAmount <= 0) {
-    return res.status(400).json({ error: 'Invalid total amount' });
-  }
-
-  // Seat line items
-  const seatItems = seatsBooked.map((seat) => ({
-    price_data: {
-      currency: 'inr',
-      product_data: {
-        name: `${eventName} - ${seat.seatType} ${seat.seatNumber}`,
-      },
-      unit_amount: Math.round(seat.price * 100),
-    },
-    quantity: 1,
-  }));
-
-  // You can enable food items logic later if needed
-  const lineItems = [...seatItems];
-
-  try {
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: lineItems,
-      mode: 'payment',
-      success_url: 'https://ticketflix-official.netlify.app/eventsuccess',
-      cancel_url: 'https://ticketflix-official.netlify.app/',
-      metadata: {
-        bookingDetails: JSON.stringify({
-          movieName: eventName,
-          totalAmount: totalAmount.toString(),
-          bookingDate: new Date().toISOString(),
-          seatCount: seatsBooked.length.toString(),
-        }),
-      },
-    });
-
-    res.json({ id: session.id });
-  } catch (error) {
-    console.error('Stripe session error:', error);
-    res.status(500).json({ error: 'Failed to create checkout session' });
-  }
-});
-
-
-
 
 // Stripe webhook endpoint to handle Stripe events
 app.post('/webhook', bodyparser.raw({ type: 'application/json' }), async (req, res) => {

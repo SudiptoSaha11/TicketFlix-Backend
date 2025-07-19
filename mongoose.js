@@ -941,18 +941,24 @@ const getDashboardStats = async (req, res) => {
 //---------------------------------------------------------------------------------------------------------
 
 // Create a new beverage
+// Create a new beverage
 exports.createBeverage = async (req, res) => {
   try {
     const { beverageName, image, category, sizes } = req.body;
+    // sizes should be an array of { label, price, quantity }
     const beverage = new Beverage({ beverageName, image, category, sizes });
     const saved = await beverage.save();
     return res.status(201).json(saved);
   } catch (error) {
     if (error.name === 'ValidationError') {
-      return res.status(400).json({ message: error.message, errors: error.errors });
+      return res
+        .status(400)
+        .json({ message: error.message, errors: error.errors });
     }
     if (error.code === 11000) {
-      return res.status(409).json({ message: 'Beverage name must be unique.' });
+      return res
+        .status(409)
+        .json({ message: 'Beverage name must be unique.' });
     }
     console.error('Error creating beverage:', error);
     return res.status(500).json({ message: 'Server Error' });
@@ -990,10 +996,11 @@ exports.getBeverageById = async (req, res) => {
   }
 };
 
-// Update a beverage
+// Update a beverage (including size quantities)
 exports.updateBeverage = async (req, res) => {
   try {
     const { id } = req.params;
+    // req.body can contain any of beverageName, image, category, sizes (with quantities)
     const updates = req.body;
     const options = { new: true, runValidators: true };
     const updated = await Beverage.findByIdAndUpdate(id, updates, options);
@@ -1003,7 +1010,9 @@ exports.updateBeverage = async (req, res) => {
     return res.status(200).json(updated);
   } catch (error) {
     if (error.name === 'ValidationError') {
-      return res.status(400).json({ message: error.message, errors: error.errors });
+      return res
+        .status(400)
+        .json({ message: error.message, errors: error.errors });
     }
     console.error('Error updating beverage:', error);
     return res.status(500).json({ message: 'Server Error' });
@@ -1024,6 +1033,7 @@ exports.deleteBeverage = async (req, res) => {
     return res.status(500).json({ message: 'Server Error' });
   }
 };
+
 
 
 // ---------------------------------------------------------------------------------------------------------

@@ -10,7 +10,7 @@ const BeverageSchema = new mongoose.Schema({
     trim: true
   },
   image: {
-    type: String, 
+    type: String,
     trim: true
   },
   category: {
@@ -20,15 +20,21 @@ const BeverageSchema = new mongoose.Schema({
   },
   sizes: [
     {
-      label: { 
-        type: String, 
+      label: {
+        type: String,
         required: true,
         enum: ['Small', 'Medium', 'Large', 'Regular', 'XL', 'Custom']
       },
-      price: { 
-        type: Number, 
-        required: true, 
-        min: 0 
+      price: {
+        type: Number,
+        required: true,
+        min: 0
+      },
+      quantity: {
+        type: Number,
+        required: true,
+        min: 0,
+        default: 0
       }
     }
   ]
