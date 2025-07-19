@@ -28,7 +28,11 @@ const mongoPractice = require('./mongoose');
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:3000', 'https://ticketflix-official.netlify.app'], // Allow your local frontend and deployed frontend
+  credentials: true,
+}));
+
 app.use(bodyparser.json());
 app.use(express.static('public'));
 
@@ -79,8 +83,8 @@ app.post('/api/create-checkout-session', async (req, res) => {
       payment_method_types: ['card'],
       line_items: lineItems,
       mode: 'payment',
-      success_url: 'http://localhost:3000/success',
-      cancel_url:  'http://localhost:3000/',
+      success_url: 'https://ticketflix-backend.onrender.com/success',
+      cancel_url:  'https://ticketflix-backend.onrender.com/',
       metadata: {
         bookingDetails: JSON.stringify({
           movieName: Name,
