@@ -83,8 +83,8 @@ app.post('/api/create-checkout-session', async (req, res) => {
       payment_method_types: ['card'],
       line_items: lineItems,
       mode: 'payment',
-      success_url: 'https://ticketflix-backend.onrender.com/success',
-      cancel_url:  'https://ticketflix-backend.onrender.com/',
+      success_url: 'https://ticketflix-official.netlify.app/success',
+      cancel_url:  'https://ticketflix-official.netlify.app/',
       metadata: {
         bookingDetails: JSON.stringify({
           movieName: Name,
