@@ -168,7 +168,8 @@ app.post(
 app.post('/movieschema/add',
   upload.fields([
     { name: 'image', maxCount: 1 },
-    { name: 'castImage', maxCount: 10 }  // Allow up to 10 cast images
+    { name: 'castImage', maxCount: 10 },
+    { name: 'crewImage', maxCount: 10 } 
   ]),
   mongoPractice.movieProduct
 );
@@ -194,12 +195,14 @@ app.get('/getmovieview/:pid', async (req, res, next) => {
       movieLanguage: product.movieLanguage,
       movieDuration: product.movieDuration,
       movieCast: product.movieCast,
+      movieCrew: product.movieCrew,
       movieDescription: product.movieDescription,
       movieReleasedate: product.movieReleasedate,
       trailerLink: product.trailerLink,
       movieFormat: product.movieFormat,
       imageURL, // Full poster URL
-      reviews: product.reviews || []
+      reviews: product.reviews || [],
+      movieCensor: product.movieCensor,
     });
   } catch (err) {
     next(err);

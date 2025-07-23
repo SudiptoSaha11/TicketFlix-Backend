@@ -13,11 +13,16 @@ const movie = new mongoose.Schema({
     name: { type: String, required: true },
     image: { type: String, required: true } // URL or Base64 image
   }],
+  movieCrew: [{
+    name: { type: String, required: true },
+    role: { type: String, required: true }, 
+    image: { type: String, required:true } 
+  }],
   movieDescription: { type: String, required: true },
   movieReleasedate: { type: Date, required: true },
   trailerLink: { type: String }, // Field for YouTube trailer link
   movieFormat: { type: String, required: true },
-  // New field for reviews and ratings
+  movieCensor: { type: String, required: true },
   reviews: [{
     user: {
       type: String,  // store as plain text

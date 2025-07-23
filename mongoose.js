@@ -17,141 +17,215 @@ const HttpError = require('./models/http-error');
 
 // -------------------------------------------------------------------------------------------------------
 const movieProduct = async (req, res, next) => {
-  const { 
-    movieName, 
-    movieGenre, 
-    movieLanguage, 
-    movieDuration, 
-    movieCast, 
-    movieDescription, 
-    movieReleasedate,
-    trailerLink,  
-    movieFormat  
-  } = req.body;
-
-  // Parse movieCast from req.body (assuming it's sent as a JSON array)
-  let parsedMovieCast = JSON.parse(movieCast).map(castMember => ({
-    name: castMember.name,
-    image: castMember.image, // fallback image (if any)
-  }));
-
-  console.log("Parsed movie cast:", parsedMovieCast);
-
-  // Ensure cast images are in an array
-  if (req.files && req.files.castImage) {
-    const castImages = Array.isArray(req.files.castImage)
-      ? req.files.castImage
-      : [req.files.castImage];
-  
-    console.log("Uploaded cast images:", castImages);
-  
-    // Map over parsedMovieCast to assign each cast member a unique image
-    parsedMovieCast = parsedMovieCast.map((member, index) => ({
-      ...member,
-      image: castImages[index] ? castImages[index].filename : member.image,
-    }));
-  }
-  
-  console.log("Mapped movie cast:", parsedMovieCast);
-  
-  const movieProduct = new Product1({
+  const {
     movieName,
-    // Removed the binary image storage
-    // img: {
-    //   data: fs.readFileSync(path.join(__dirname, '/uploads/', req.files.image[0].filename)),
-    //   contentType: req.files.image[0].mimetype,
-    // },
-    // Now the image field is set from req.body.image (a Google image link)
-    image: req.body.image,
     movieGenre,
     movieLanguage,
     movieDuration,
-    movieCast: parsedMovieCast,
+    movieCast,
+    movieCrew,
     movieDescription,
     movieReleasedate,
-    trailerLink,    
-    movieFormat    
+    trailerLink,
+    movieFormat,
+    movieCensor             
+  } = req.body;
+
+  // parse cast & crew arrays
+  let parsedMovieCast = JSON.parse(movieCast).map(m => ({
+    name:  m.name,
+    image: m.image
+  }));
+  let parsedMovieCrew = JSON.parse(movieCrew).map(m => ({
+    name:  m.name,
+    role:  m.role,
+    image: m.image
+  }));
+
+  // handle uploaded cast images
+  if (req.files?.castImage) {
+    const castImages = Array.isArray(req.files.castImage)
+      ? req.files.castImage
+      : [req.files.castImage];
+    parsedMovieCast = parsedMovieCast.map((m, i) => ({
+      ...m,
+      image: castImages[i]?.filename || m.image
+    }));
+  }
+
+  // handle uploaded crew images
+  if (req.files?.crewImage) {
+    const crewImages = Array.isArray(req.files.crewImage)
+      ? req.files.crewImage
+      : [req.files.crewImage];
+    parsedMovieCrew = parsedMovieCrew.map((m, i) => ({
+      ...m,
+      image: crewImages[i]?.filename || m.image
+    }));
+  }
+
+  const movie = new Product1({
+    movieName,
+    image:           req.body.image,
+    movieGenre,
+    movieLanguage,
+    movieDuration,
+    movieCast:       parsedMovieCast,
+    movieCrew:       parsedMovieCrew,
+    movieDescription,
+    movieReleasedate,
+    trailerLink,
+    movieFormat,
+    movieCensor      
   });
 
   try {
-    const result = await movieProduct.save();
+    const result = await movie.save();
+    res.status(201).json({ product: result });
   } catch (err) {
-    console.error("Error saving movie product:", err);
+    console.error(err);
     return next(new HttpError('Creating product failed, please try again.', 500));
   }
-
-  return res.status(201).json({ product: movieProduct });
 };
 
-// Get all movie products
+// Get all movies
 const getMovieProduct = async (req, res, next) => {
-  const product = await Product1.find().exec();
-
-  if (!product) {
-    return res.status(404).send('Not Found');
+  try {
+    const products = await Product1.find().exec();
+    if (!products.length) {
+      return res.status(404).json({ message: 'No products found.' });
+    }
+    res.json(products);
+  } catch (err) {
+    return next(new HttpError('Fetching products failed, please try again.', 500));
   }
-  res.json(product);
 };
 
-// Get movie product by ID
+// Get a single movie by ID
 const getMovieProductById = async (req, res, next) => {
   const id = req.params.pid;
-
+  let product;
   try {
-    const product = await Product1.findById(id).exec();
-
-    if (!product) {
-      return res.status(404).send('Product not found');
-    }
-
-    const imageURL = `http://localhost:5000/uploads/${product.image}`;
-
-    res.json({
-      movieName: product.movieName,
-      movieGenre: product.movieGenre,
-      movieLanguage: product.movieLanguage,
-      movieDuration: product.movieDuration,
-      movieCast: product.movieCast,
-      movieDescription: product.movieDescription,
-      movieReleasedate: product.movieReleasedate,
-      trailerLink: product.trailerLink,
-      movieFormat: product.movieFormat,
-      imageURL,
-    });
+    product = await Product1.findById(id).exec();
   } catch (err) {
-    next(err);
+    return next(new HttpError('Could not find product.', 500));
   }
+  if (!product) {
+    return res.status(404).json({ message: 'Product not found.' });
+  }
+
+  // build URLs for stored images
+  const urlBase   = 'http://localhost:5000/uploads/';
+  const imageURL  = `${urlBase}${product.image}`;
+  const castWithURLs = product.movieCast.map(c => ({
+    name:  c.name,
+    image: c.image.startsWith('http') ? c.image : `${urlBase}${c.image}`
+  }));
+  const crewWithURLs = product.movieCrew.map(c => ({
+    name:  c.name,
+    role:  c.role,
+    image: c.image.startsWith('http') ? c.image : `${urlBase}${c.image}`
+  }));
+
+  res.json({
+    movieName:       product.movieName,
+    movieGenre:      product.movieGenre,
+    movieLanguage:   product.movieLanguage,
+    movieDuration:   product.movieDuration,
+    movieCast:       castWithURLs,
+    movieCrew:       crewWithURLs,
+    movieDescription:product.movieDescription,
+    movieReleasedate:product.movieReleasedate,
+    trailerLink:     product.trailerLink,
+    movieFormat:     product.movieFormat,
+    movieCensor:     product.movieCensor,   
+    imageURL
+  });
 };
 
-// Update movie product by ID
+// Update a movie by ID
 const updateMovieProductById = async (req, res, next) => {
   const id = req.params.pid;
+  const {
+    movieName,
+    movieGenre,
+    movieLanguage,
+    movieDuration,
+    movieDescription,
+    movieReleasedate,
+    trailerLink,
+    movieFormat,
+    movieCensor           
+  } = req.body;
+
+  // parse cast & crew if strings
+  let updatedCast = typeof req.body.movieCast === 'string'
+    ? JSON.parse(req.body.movieCast)
+    : req.body.movieCast;
+  let updatedCrew = typeof req.body.movieCrew === 'string'
+    ? JSON.parse(req.body.movieCrew)
+    : req.body.movieCrew;
+
+  // handle new cast images
+  if (req.files?.castImage) {
+    const castImgs = Array.isArray(req.files.castImage)
+      ? req.files.castImage
+      : [req.files.castImage];
+    updatedCast = updatedCast.map((m, i) => ({
+      ...m,
+      image: castImgs[i]?.filename || m.image
+    }));
+  }
+
+  // handle new crew images
+  if (req.files?.crewImage) {
+    const crewImgs = Array.isArray(req.files.crewImage)
+      ? req.files.crewImage
+      : [req.files.crewImage];
+    updatedCrew = updatedCrew.map((m, i) => ({
+      ...m,
+      image: crewImgs[i]?.filename || m.image
+    }));
+  }
+
   const updateData = {
-    movieName: req.body.movieName,
-    movieGenre: req.body.movieGenre,
-    movieLanguage: req.body.movieLanguage,
-    movieDuration: req.body.movieDuration,
-    movieCast: req.body.movieCast,
-    movieDescription: req.body.movieDescription,
-    movieReleasedate: req.body.movieReleasedate,
-    trailerLink: req.body.trailerLink,
-    movieFormat: req.body.movieFormat,
+    movieName,
+    movieGenre,
+    movieLanguage,
+    movieDuration,
+    movieCast:       updatedCast,
+    movieCrew:       updatedCrew,
+    movieDescription,
+    movieReleasedate,
+    trailerLink,
+    movieFormat,
+    movieCensor,    
+    image:           req.body.image
   };
-  const product = await Product1.findByIdAndUpdate(id, updateData, { new: true });
+
+  let product;
+  try {
+    product = await Product1.findByIdAndUpdate(id, updateData, { new: true }).exec();
+  } catch (err) {
+    return next(new HttpError('Updating product failed, please try again.', 500));
+  }
   if (!product) {
-    return res.status(404).send('Not found');
+    return res.status(404).json({ message: 'Product not found.' });
   }
   res.json(product);
 };
 
-// Delete movie product by ID
+// Delete a movie by ID
 const deleteMovieProductById = async (req, res, next) => {
-  const id = req.params.pid;
-  const product = await Product1.findByIdAndDelete(id).exec();
-  if (!product) {
-    return res.status(404).send('Not Found');
+  try {
+    const product = await Product1.findByIdAndDelete(req.params.pid).exec();
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found.' });
+    }
+    res.json({ message: 'Delete successful.' });
+  } catch (err) {
+    return next(new HttpError('Deleting product failed, please try again.', 500));
   }
-  res.send('Delete successful');
 };
 
 // Add a review to a movie product
