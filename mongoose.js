@@ -696,71 +696,101 @@ const deleteEventProductById = async (req, res, next) => {
 
 // -----------------------------------------------------------------------------------------------------------
 
-// Create a new booking
 const Booking = async (req, res) => {
   try {
-    const { userEmail, Name, seats, totalAmount, bookingDate, Venue, Time,Language, status } = req.body;
+    const {
+      userEmail,
+      Name,
+      seats,
+      totalAmount,
+      bookingDate,
+      Venue,
+      Time,
+      Language,
+      status
+    } = req.body;
 
-    console.log('Received data:', { userEmail, Name, seats, totalAmount, bookingDate, Venue, Time, Language, status });
+    console.log('Received data:', {
+      userEmail,
+      Name,
+      seats,
+      totalAmount,
+      bookingDate,
+      Venue,
+      Time,
+      Language,
+      status
+    });
 
-    // Validate user email
+    // 1. Validate user email
     if (!userEmail) {
       return res.status(400).json({ error: 'User email is required' });
     }
-
-    // Check if the user exists
     const user = await User.findOne({ email: userEmail });
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Validate incoming data
-    if (!Name || !Array.isArray(seats) || seats.length === 0 || typeof totalAmount !== 'number' || !bookingDate) {
+    // 2. Validate payload
+    if (
+      !Name ||
+      !Array.isArray(seats) ||
+      seats.length === 0 ||
+      typeof totalAmount !== 'number' ||
+      !bookingDate
+    ) {
       console.log('Validation failed:', { Name, seats, totalAmount, bookingDate });
       return res.status(400).json({ error: 'Invalid data format' });
     }
-
-    // Ensure all seat numbers are strings
     if (!seats.every(seat => typeof seat === 'string')) {
-      return res.status(400).json({ error: 'Seats must be an array of seat numbers (strings)' });
+      return res.status(400).json({ error: 'Seats must be an array of strings' });
     }
-
-    // Convert bookingDate to Date object
     const bookingDateObject = new Date(bookingDate);
     if (isNaN(bookingDateObject.getTime())) {
       console.log('Invalid booking date:', bookingDate);
       return res.status(400).json({ error: 'Invalid booking date' });
     }
-
-    // Validate status field
     const validStatuses = ['pending', 'confirmed', 'cancelled'];
     if (status && !validStatuses.includes(status)) {
       return res.status(400).json({ error: 'Invalid status value' });
     }
 
-    // Create a new booking record
+    // 3. Build the document
     const newBooking = new Product5({
       userEmail,
       Name,
       Venue,
       Time,
       Language,
-      seats,  // Now just an array of seat numbers
+      seats,
       totalAmount,
       bookingDate: bookingDateObject,
-      status: 'confirmed', // Set status to confirmed after successful booking
+      status: 'confirmed'
     });
 
-    // Save to database
-    const result = await newBooking.save();
-    console.log('Booking saved successfully:', result);
-    res.status(201).json(result);
+    // 4. Save and handle race‑condition on seats via unique index
+    try {
+      const result = await newBooking.save();
+      console.log('Booking saved successfully:', result);
+      return res.status(201).json(result);
+    } catch (err) {
+      // 11000 = Mongo duplicate‑key error from our compound index
+      if (err.code === 11000) {
+        console.warn('Duplicate-seat detected:', err.keyValue);
+        return res
+          .status(409)
+          .json({ error: 'Sorry, one or more of those seats were just taken. Please re‑select.' });
+      }
+      // any other error
+      console.error('Error saving booking:', err);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+
   } catch (error) {
-    console.error('Error saving screen product:', error.message, error.stack);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Unexpected error in createBooking:', error);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 };
-
 
 // Get all bookings
 const getBooking = async (req, res) => {
@@ -890,6 +920,58 @@ const deleteBookingById = async (req, res) => {
   } catch (error) {
     console.error('Error deleting booking:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// POST /api/bookings/seats
+exports.getBookedSeats = async (req, res) => {
+  try {
+    const { Name, Venue, bookingDate, Time } = req.body;
+
+    // 1) Validate presence
+    if (!Name || !Venue || !bookingDate || !Time) {
+      return res
+        .status(400)
+        .json({ error: 'Name, Venue, bookingDate and Time are all required.' });
+    }
+
+    // 2) Validate bookingDate format
+    const dateObj = new Date(bookingDate);
+    if (isNaN(dateObj.getTime())) {
+      return res
+        .status(400)
+        .json({ error: 'bookingDate must be a valid date string (e.g. YYYY-MM-DD).' });
+    }
+
+    // 3) Build midnight‑to‑midnight range for that day
+    const startOfDay = new Date(dateObj);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(dateObj);
+    endOfDay.setHours(24, 0, 0, 0);
+
+    const docs = await Product5.find({
+      Name,
+      Venue,
+      bookingDate: { $gte: startOfDay, $lt: endOfDay },
+      Time: { $regex: new RegExp('^' + Time, 'i') },
+      status: 'confirmed'
+    }).select('seats -_id');
+
+    // 5) No bookings found ⇒ 404
+    if (!docs.length) {
+      return res
+        .status(404)
+        .json({ message: 'No seats have been booked for that show.' });
+    }
+
+    // 6) Flatten seat arrays
+    const bookedSeats = docs.flatMap(doc => doc.seats);
+
+    // 7) Return the list
+    return res.status(200).json({ bookedSeats });
+  } catch (err) {
+    console.error('Error fetching booked seats:', err);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 };
 

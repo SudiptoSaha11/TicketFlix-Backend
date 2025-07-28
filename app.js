@@ -286,6 +286,7 @@ app.get('/booking/user/:userEmail', mongoPractice.getBookingByUserEmail);
 app.patch('/booking/update/:pid', mongoPractice.updateBookingById);
 app.patch('/booking/:id/cancel', mongoPractice.cancelBooking);
 app.delete('/booking/delete/:pid', mongoPractice.deleteBookingById);
+app.post('/booking/seats', mongoPractice.getBookedSeats);
 
 // Event schema routes
 app.post('/eventschedule/add', mongoPractice.Eventschedule);

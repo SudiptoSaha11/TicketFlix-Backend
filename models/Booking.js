@@ -1,27 +1,27 @@
+// models/Booking.js
 const mongoose = require('mongoose');
 
-// Define the main booking schema
-const Booking = new mongoose.Schema({
-  userEmail: { type: String, required: true, ref: 'User' }, // Connect using email
-  Name: { type: String, required: true },
-
-  // Added Venue and showTime fields
-  Venue: { type: String, required: false },
-  Time: { type: String, required: false },
-  Language: { type: String, required: false },
-  Format: { type: String, required: false },
-
-  seats: [{ type: String, required: true }], // Array of seat numbers as strings
+const BookingSchema = new mongoose.Schema({
+  userEmail:   { type: String, required: true, ref: 'User' },
+  Name:        { type: String, required: true },
+  Venue:       { type: String },
+  Time:        { type: String },
+  Language:    { type: String },
+  Format:      { type: String },
+  seats:       [{ type: String, required: true }],
   totalAmount: { type: Number, required: true },
-  bookingDate: { type: Date, required: true },
-
-  // New status field with default value
-  status: { 
-    type: String, 
-    enum: ['pending', 'confirmed', 'cancelled'], 
-    default: 'pending' 
+  bookingDate: { type: Date,   required: true },
+  status:      {
+    type: String,
+    enum: ['pending','confirmed','cancelled'],
+    default: 'pending'
   }
 });
 
-const Project1 = mongoose.model('Project1', Booking);
-module.exports = Project1;
+// Strict unique—no sparse:
+BookingSchema.index(
+  { Name:1, Venue:1, bookingDate:1, Time:1, seats:1 },
+  { unique: true }
+);
+
+module.exports = mongoose.model('Project1', BookingSchema);
