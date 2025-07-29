@@ -10,6 +10,7 @@ const Admin = require('./models/Admin')
 const Product4 = require('./models/Event')
 const Product5 = require('./models/Booking')
 const Product6 = require('./models/Eventschedule')
+const Staff=require('./models/Staffschema');
 const Beverage=require('./models/Beverageschema')
 const { validationResult } = require('express-validator');
 const HttpError = require('./models/http-error');
@@ -1190,7 +1191,82 @@ exports.deleteBeverage = async (req, res) => {
   }
 };
 
+//---------------------------------------------------------------------------------------------------------
+const updateBookingStatus = async (req, res) => {
+  try {
+    const id = req.params.pid;
+    const { status } = req.body;
 
+    if (!['used', 'rejected'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status' });
+    }
+
+    // 🔍 First fetch the booking
+    const booking = await Product5.findById(id);
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    // ✅ Prevent double use/rejection
+    if (booking.status === 'used') {
+      return res.status(400).json({ message: 'Ticket has already been used' });
+    }
+
+    if (booking.status === 'rejected') {
+      return res.status(400).json({ message: 'Ticket has already been rejected' });
+    }
+
+    booking.status = status;
+    await booking.save();
+
+    res.json({ message: `Booking ${status} successfully`, booking });
+  } catch (error) {
+    console.error('Error updating booking status:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+exports.updateBookingStatus=updateBookingStatus;
+//---------------------------------------------------------------------------------------------------------
+const loginStaff = async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    const foundStaff = await Staff.findOne({ username, password }); // use different variable name
+
+    if (!foundStaff) {
+      return res.status(401).json({ message: 'Invalid username or password' });
+    }
+
+    res.status(200).json({ message: 'Login successful', staffId: foundStaff._id });
+
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const createStaff = async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    // Check if user already exists
+    const existing = await Staff.findOne({ username });
+    if (existing) {
+      return res.status(400).json({ message: 'Username already exists' });
+    }
+
+    const newStaff = new Staff({ username, password }); // Add bcrypt in prod
+    await newStaff.save();
+
+    res.status(201).json({ message: 'Staff created successfully', staffId: newStaff._id });
+  } catch (error) {
+    console.error('Create staff error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+exports.loginStaff=loginStaff;
+exports.createStaff=createStaff;
 
 // ---------------------------------------------------------------------------------------------------------
 

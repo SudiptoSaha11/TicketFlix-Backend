@@ -338,6 +338,11 @@ app.get('/api/eventcomplete', async (req, res) => {
 
 app.get('/dashboard/stats', mongoPractice.getDashboardStats);
 
+app.patch('/qrupdate/:pid', mongoPractice.updateBookingStatus);
+
+app.post('/staff/login',mongoPractice.loginStaff);
+app.post('/staff/signin',mongoPractice.createStaff);
+
 
 app.listen(process.env.PORT, () => {
   console.log('Server is running on port 5000');
