@@ -1211,12 +1211,14 @@ const updateBookingStatus = async (req, res) => {
     if (booking.status === 'used') {
       return res.status(400).json({ message: 'Ticket has already been used' });
     }
-
     if (booking.status === 'rejected') {
       return res.status(400).json({ message: 'Ticket has already been rejected' });
     }
 
+    // Update status and reset bookingDate to now
     booking.status = status;
+    booking.bookingDate = new Date();
+
     await booking.save();
 
     res.json({ message: `Booking ${status} successfully`, booking });
@@ -1225,7 +1227,8 @@ const updateBookingStatus = async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
-exports.updateBookingStatus=updateBookingStatus;
+
+exports.updateBookingStatus = updateBookingStatus;
 //---------------------------------------------------------------------------------------------------------
 const loginStaff = async (req, res) => {
   try {
