@@ -9,7 +9,7 @@ const bodyparser = require('body-parser');
 const multer = require('multer');
 const crypto = require('crypto');
 const mongoose = require('mongoose');
-
+const AuthRoutes=require('./routes/Auth.routes');
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY); // Use
 
 // Connect to your database
@@ -42,6 +42,8 @@ app.get("/", (req, res) => {
 
 // Serve static files from the uploads folder
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+app.use('/auth',AuthRoutes);
 
 // Stripe Checkout API
 app.post('/api/create-checkout-session', async (req, res) => {
@@ -137,6 +139,106 @@ app.post('/webhook', bodyparser.raw({ type: 'application/json' }), async (req, r
     }
   }
 
+  res.json({ received: true });
+});
+
+app.post('/api/event/create-checkout-session', async (req, res) => {
+  try {
+    console.log('REQUEST BODY ->', JSON.stringify(req.body));
+
+    const { userEmail = '', eventName, seatsBooked = [], totalAmount } = req.body;
+
+    // normalize totalAmount to Number
+    const total = Number(totalAmount);
+    if (!eventName) return res.status(400).json({ error: 'Missing eventName' });
+    if (!Array.isArray(seatsBooked) || seatsBooked.length === 0) return res.status(400).json({ error: 'No seats selected' });
+    if (Number.isNaN(total) || total <= 0) return res.status(400).json({ error: 'Invalid totalAmount' });
+
+    if (!stripe) {
+      console.error('Stripe client not initialized. Check STRIPE_SECRET_KEY.');
+      return res.status(500).json({ error: 'Stripe not configured on server' });
+    }
+
+    // Build seat objects
+    const targetTotalCents = Math.round(total * 100);
+    const seatObjs = seatsBooked.map(s => {
+      if (typeof s === 'string') return { name: s, unit_amount_cents: 0 };
+      const name = `${s.seatType || ''}${s.seatNumber || s.name || ''}`.trim() || 'Seat';
+      const price = Number(s.price) || 0;
+      return { name, unit_amount_cents: price > 0 ? Math.round(price * 100) : 0 };
+    });
+
+    // Distribute remaining cents among seats with 0 price (if any)
+    let remaining = targetTotalCents - seatObjs.reduce((acc, s) => acc + (s.unit_amount_cents || 0), 0);
+    const zeroSeats = seatObjs.filter(s => !s.unit_amount_cents);
+    if (zeroSeats.length > 0 && remaining > 0) {
+      const per = Math.floor(remaining / zeroSeats.length);
+      zeroSeats.forEach((s, i) => s.unit_amount_cents = per + (i === zeroSeats.length - 1 ? (remaining - per * zeroSeats.length) : 0));
+    }
+
+    const line_items = seatObjs.map(s => ({
+      price_data: {
+        currency: 'inr',
+        product_data: { name: s.name },
+        unit_amount: s.unit_amount_cents || 0
+      },
+      quantity: 1
+    }));
+
+    // Fix rounding diffs by adding adjustment item
+    const computed = line_items.reduce((a, b) => a + (b.price_data.unit_amount || 0), 0);
+    if (computed !== targetTotalCents) {
+      const diff = targetTotalCents - computed;
+      line_items.push({
+        price_data: {
+          currency: 'inr',
+          product_data: { name: 'Booking adjustment' },
+          unit_amount: Math.abs(diff) || 1
+        },
+        quantity: 1
+      });
+      if (diff < 0) console.warn('client seat prices exceed totalAmount by', Math.abs(diff) / 100);
+    }
+
+    // Create stripe session
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items,
+      mode: 'payment',
+      success_url: process.env.SUCCESS_URL || 'https://ticketflix-official.netlify.app/eventsuccess',
+      cancel_url: process.env.CANCEL_URL || 'https://ticketflix-official.netlify.app/',
+      metadata: {
+        bookingDetails: JSON.stringify({
+          type: 'event',
+          userEmail,
+          eventName,
+          seatsBooked,
+          totalAmount: total.toString(),
+          bookingDate: new Date().toISOString()
+        })
+      }
+    });
+
+    console.log('STRIPE SESSION CREATED ->', session && session.id);
+    return res.json({ id: session && session.id });
+  } catch (err) {
+    console.error('CREATE SESSION ERROR ->', err && err.stack || err);
+    return res.status(500).json({ error: err.message || 'Failed to create session' });
+  }
+});
+
+// Stripe webhook (raw body). Note: use the exact path configured in Stripe dashboard/CLI.
+app.post('/api/event/webhook', bodyparser.raw({ type: 'application/json' }), async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  try {
+    const event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+    console.log('WEBHOOK EVENT:', event.type);
+    // ... handle checkout.session.completed here as in your code ...
+  } catch (err) {
+    console.error('Webhook signature verification failed:', err && err.message);
+    return res.status(400).send(`Webhook Error: ${err && err.message}`);
+  }
   res.json({ received: true });
 });
 

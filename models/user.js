@@ -7,7 +7,12 @@ const userSchema = new mongoose.Schema({
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true, minlength: 8 },
-    usertype:{type:String,required:true,default:'user'}
+    usertype:{type:String,required:true,default:'user'},
+    isVerified: {type: Boolean, default: false},
+    resetPasswordToken: String,
+    resetPasswordExpiresAt: Date,
+    verificationToken: String,
+    verificationTokenExpiresAt: Date,
 },{ timestamps: true });
 //we have to add the validator to the schema
 userSchema.plugin(uniqueValidator);
