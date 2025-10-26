@@ -7,7 +7,7 @@ const puppeteer = require ('puppeteer');
 const sendVerificationEmail=async(email,verificationCode)=>{
     try {
      const response=   await transporter.sendMail({
-            from: '"Ticket Flix Team" <icedebojitcool059@gmail.com>',
+            from: '"Ticket Flix Team" <my.ticket.flix@gmail.com>',
 
             to: email, // list of receivers
             subject: "Welcome to Ticket Flix! Please verify your email", // Subject line
@@ -22,7 +22,7 @@ const sendVerificationEmail=async(email,verificationCode)=>{
 const senWelcomeEmail=async(email,name)=>{
     try {
      const response=   await transporter.sendMail({
-            from: '"Ticket Flix" <icedebojitcool059@gmail.com>',
+            from: '"Ticket Flix" <my.ticket.flix@gmail.com>',
 
             to: email, // list of receivers
             subject: "Welcome Email", // Subject line
