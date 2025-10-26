@@ -4,6 +4,7 @@ const uniqueValidator = require('mongoose-unique-validator');
 const eventSchema = new mongoose.Schema({
   eventName: { type: String, required: true },
   image: { type: String },
+  backgroundImage:{type: String},
   eventLanguage: { type: String, required: true },
   eventDuration: { type: String, required: true },
   eventArtist: [{
